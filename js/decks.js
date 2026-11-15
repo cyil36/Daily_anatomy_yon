@@ -44,6 +44,7 @@ function renderDecks(root, kind) {
   root.append(h('div', { class: 'section-head' },
     h('h2', null, kind === 'study' ? '학습' : '퀴즈'),
     h('div', { class: 'row' },
+      h('button', { class: 'btn ghost sm', onclick: () => createMany(kind) }, '여러 개 한번에'),
       decks.length > 1 ? h('button', { class: 'btn ghost sm', onclick: () => mergeDecks(kind) }, '모아서 만들기') : null,
       h('button', { class: 'btn primary sm', onclick: () => editDeck(null, kind) }, kind === 'study' ? '+ 새 학습' : '+ 새 퀴즈'))));
   root.append(h('p', { class: 'muted sm intro' }, kind === 'study'
@@ -181,6 +182,81 @@ function itemPicker(itype, sel, onChange) {
   }
   draw();
   return box;
+}
+
+/* Create one deck per checked folder in one go (e.g. every "0번/1번/2번 자료" folder, or every 세부목차). */
+const shortFolderName = (f, i, path) => i === 0 && /^\d+차\s/.test(f.name) && path.length > 1 ? f.name.split(' ')[0] : f.name.replace(/\s*\((Flash card|Rohen 모음)\)\s*$/, '');
+function folderDeckName(fid) {
+  const path = folderPath(fid);
+  return path.map((f, i) => shortFolderName(f, i, path)).join(' · ');
+}
+function createMany(kind) {
+  const st = { type: DECK_TYPES[kind][0][0], order: 'seq', time: 0, sample: 0, sel: new Set() };
+  const body = h('div', { class: 'form' });
+  const m = modal(kind === 'study' ? '학습 여러 개 한번에 만들기' : '퀴즈 여러 개 한번에 만들기', body, { wide: true });
+  const itype = () => itemTypeFor(st.type);
+  const itemsOf = fid => folderDescItems(fid).filter(i => i.type === itype() && itemQids(i).length);
+  const depth = fid => folderPath(fid).length;
+  function draw() {
+    body.innerHTML = '';
+    const usable = S.folders.filter(f => itemsOf(f.id).length);
+    for (const id of [...st.sel]) if (!usable.some(f => f.id === id)) st.sel.delete(id);
+    const maxDepth = Math.max(0, ...usable.map(f => depth(f.id)));
+    const depthName = d => ({ 1: '맨 위 폴더(시험)별', 2: '두 번째(부위)별', 3: '세 번째(자료)별', 4: '네 번째(세부목차)별' }[d] || `${d}단계 폴더별`);
+    const types = h('div', { class: 'type-grid' }, DECK_TYPES[kind].map(([t, label, desc]) =>
+      h('button', { class: 'type-card' + (st.type === t ? ' on' : ''), onclick: () => { st.type = t; draw(); } }, h('b', null, label), h('span', { class: 'sm muted' }, desc))));
+    const order = h('select', { class: 'input', onchange: e => st.order = e.target.value },
+      h('option', { value: 'seq', selected: st.order === 'seq' }, '순서대로'),
+      h('option', { value: 'random', selected: st.order === 'random' }, '풀 때마다 랜덤'));
+    const time = h('input', { class: 'input', type: 'number', min: 0, max: 600, value: st.time || '', placeholder: '없음' });
+    time.oninput = () => st.time = Math.max(0, +time.value || 0);
+    const sample = h('input', { class: 'input', type: 'number', min: 0, value: st.sample || '', placeholder: '전부' });
+    sample.oninput = () => st.sample = Math.max(0, +sample.value || 0);
+    const list = h('div', { class: 'picker' });
+    const walk = (pid, d) => {
+      for (const f of folderChildren(pid).sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }))) {
+        const n = itemsOf(f.id).reduce((a, i) => a + itemQids(i).length, 0);
+        if (!n) continue;
+        const on = st.sel.has(f.id);
+        list.append(h('div', { class: 'pk-row', style: { paddingLeft: 8 + d * 18 + 'px' } },
+          h('button', { class: 'cb ' + (on ? 'on' : ''), onclick: () => { on ? st.sel.delete(f.id) : st.sel.add(f.id); draw(); } }, on ? '✓' : ''),
+          h('span', { class: 'pk-item' }, '📁 ' + f.name),
+          h('span', { class: 'muted sm' }, n + '문제')));
+        walk(f.id, d + 1);
+      }
+    };
+    walk(null, 0);
+    if (!list.children.length) list.append(h('div', { class: 'empty sm' }, '이 유형에 맞는 자료가 든 폴더가 없어요.'));
+    const names = [...st.sel].map(folderDeckName);
+    body.append(
+      h('label', { class: 'lbl' }, '유형'), types,
+      h('div', { class: 'grid3' },
+        h('div', null, h('label', { class: 'lbl' }, '문제 순서'), order),
+        h('div', null, h('label', { class: 'lbl' }, '문제당 제한시간 (초)'), time),
+        h('div', null, h('label', { class: 'lbl' }, 'ㅇㅇ개만 랜덤으로'), sample)),
+      h('label', { class: 'lbl' }, '체크한 폴더마다 하나씩 만들어요'),
+      h('div', { class: 'row wrap gap' },
+        [...Array(maxDepth)].map((_, i) => h('button', { class: 'btn ghost xs', onclick: () => { st.sel = new Set(usable.filter(f => depth(f.id) === i + 1).map(f => f.id)); draw(); } }, depthName(i + 1) + ' 모두')),
+        h('button', { class: 'btn ghost xs', onclick: () => { st.sel.clear(); draw(); } }, '모두 해제')),
+      list,
+      h('p', { class: 'muted sm' }, st.sel.size ? `${st.sel.size}개 만들어요 · 예: ${names.slice(0, 2).join(', ')}${names.length > 2 ? ' …' : ''}` : '폴더를 체크하세요.'),
+      h('div', { class: 'row end' }, h('button', { class: 'btn primary', disabled: !st.sel.size, onclick: () => {
+        if (st.time && (st.time < 3 || st.time > 600)) return toast('제한시간은 3초에서 600초 사이로 적어주세요');
+        const plan = [...st.sel].map(fid => ({ fid, name: folderDeckName(fid), key: folderPath(fid).map(f => f.name).join('/'),
+          src: itemsOf(fid).sort((a, b) => (a.created || 0) - (b.created || 0)).map(i => i.id) }))
+          .sort((a, b) => a.key.localeCompare(b.key, 'ko', { numeric: true }));
+        let made = 0, upd = 0; const t0 = Date.now();
+        for (const p of plan) {
+          const ex = S.decks.find(d => d.kind === kind && d.type === st.type && d.name === p.name);
+          if (ex) { ex.src = p.src; syncQs(ex); upd++; continue; }
+          const d = { id: uid('d'), kind, type: st.type, name: p.name, order: st.order, time: st.time, sample: st.sample, src: p.src, qs: [], rec: {}, pos: 0, fav: false, created: t0 + made, hist: [] };
+          syncQs(d, true); S.decks.push(d); made++;
+        }
+        save(); m.close(); rerender();
+        toast(`${made}개를 만들었어요` + (upd ? ` · 이미 있던 ${upd}개는 자료만 새로 맞췄어요` : ''), 3500);
+      } }, '만들기')));
+  }
+  draw();
 }
 
 function mergeDecks(kind) {

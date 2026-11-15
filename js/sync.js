@@ -223,9 +223,9 @@ const Sync = {
     if (!base && remote && Object.keys(remote.items || {}).length) {
       // first sync on this device: don't push this device's untouched sample data into an existing Drive
       mine = JSON.parse(JSON.stringify(localSnap));
-      for (const [id, it] of Object.entries(mine.items)) if (it.sample) delete mine.items[id];
-      mine.folders = mine.folders.filter(f => !f.sample);
-      mine.decks = mine.decks.filter(d => !d.sample);
+      for (const [id, it] of Object.entries(mine.items)) if (it.demo) delete mine.items[id];
+      mine.folders = mine.folders.filter(f => !f.demo);
+      mine.decks = mine.decks.filter(d => !d.demo);
     }
     const merged = mergeStates(base, mine, remote);
 
@@ -258,6 +258,7 @@ const Sync = {
       S.items = merged.items; S.folders = merged.folders; S.decks = merged.decks; S.log = merged.log;
       S.settings = Object.assign(defaultState().settings, merged.settings || {});
       S.settings.keys = Object.assign({ ...DEFAULT_KEYS }, S.settings.keys || {});
+      migrateState();
       save(true); applyTheme(); rerenderIfIdle();
     }
   }

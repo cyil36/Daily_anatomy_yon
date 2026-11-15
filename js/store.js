@@ -64,10 +64,18 @@ async function loadState() {
       S = Object.assign(defaultState(), d);
       S.settings = Object.assign(defaultState().settings, d.settings || {});
       S.settings.keys = Object.assign({ ...DEFAULT_KEYS }, (d.settings || {}).keys || {});
+      migrateState();
       return false;
     }
   } catch (e) { console.error(e); }
   return true; // first run
+}
+
+/* older versions marked demo data with `sample: true`, which clashed with a deck's "N개만 랜덤" count */
+function migrateState() {
+  const fix = o => { if (o && o.sample === true) { o.demo = true; delete o.sample; } };
+  S.folders.forEach(fix); Object.values(S.items).forEach(fix);
+  S.decks.forEach(d => { if (d.sample === true) { d.demo = true; d.sample = 0; d.qs = []; } });
 }
 
 /* image object-URL cache */

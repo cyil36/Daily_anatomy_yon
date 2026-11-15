@@ -74,9 +74,9 @@ async function seedSample() {
   mk('quiz', 'mcq', '예시 · 상지 뼈대 객관식', [photo.id]);
   mk('quiz', 'jokbo', '예시 · 상지 문족 퀴즈', [j1.id, j2.id]);
   // mark sample data so a new device joining Drive sync doesn't duplicate it
-  S.folders.find(f => f.id === fid).sample = true;
-  Object.values(S.items).forEach(i => i.sample = true);
-  S.decks.forEach(d => d.sample = true);
+  S.folders.find(f => f.id === fid).demo = true;
+  Object.values(S.items).forEach(i => i.demo = true);
+  S.decks.forEach(d => d.demo = true);
   save();
 }
 
