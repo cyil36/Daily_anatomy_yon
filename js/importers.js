@@ -243,6 +243,52 @@ async function importExcel() {
   toast(`${added}개를 넣었어요` + (skipped.length ? `\n건너뛴 줄: ${skipped.slice(0, 6).join(', ')}${skipped.length > 6 ? ' 외 ' + (skipped.length - 6) : ''}` : ''), 5000);
 }
 
+/* ---- 자료 묶음 (.zip: manifest.json + images) ----
+   manifest: {format:'anat-bundle', name, folders:[{key,name,parent}], items:[{id,folder,name,img,w,h,labels:[{id,answer,boxes}]}]}
+   Folders merge by name under the same parent; items with an existing id are updated (answers/boxes), not duplicated. */
+async function importBundle() {
+  if (!window.JSZip) return toast('압축 도구를 불러오지 못했어요. 인터넷 연결을 확인해 주세요');
+  const [file] = await pickFile('.zip');
+  if (!file) return;
+  let zip, man;
+  try {
+    zip = await JSZip.loadAsync(file);
+    man = JSON.parse(await zip.file('manifest.json').async('string'));
+  } catch { return toast('자료 묶음 파일이 아니에요 (manifest.json 없음)'); }
+  if (man.format !== 'anat-bundle') return toast('자료 묶음 파일이 아니에요');
+  const nNew = man.items.filter(i => !S.items[i.id]).length;
+  if (!await confirmBox(`‘${man.name || file.name}’\n폴더 ${man.folders.length}개, 사진 ${man.items.length}장 (새로 ${nNew}장)을 넣을까요?\n이미 있는 사진은 정답·상자만 새로 고쳐요.`, '넣기')) return;
+  const prog = h('div', { class: 'muted' }, '준비 중…');
+  const m = modal('자료 묶음 넣는 중', h('div', null, prog, h('p', { class: 'muted sm' }, '창을 닫지 말고 기다려 주세요.')));
+  const fmap = {};
+  for (const f of man.folders) {
+    const parent = f.parent ? fmap[f.parent] : null;
+    let ex = S.folders.find(x => x.name === f.name && (x.parent || null) === (parent || null));
+    if (!ex) { ex = { id: uid('f'), name: f.name, parent }; S.folders.push(ex); }
+    fmap[f.key] = ex.id;
+  }
+  let done = 0, added = 0, updated = 0; const t0 = Date.now();
+  for (const it of man.items) {
+    const folder = fmap[it.folder] || null;
+    const labels = it.labels.map(l => ({ id: l.id, answer: l.answer, boxes: l.boxes, wrong: l.wrong || [] }));
+    const ex = S.items[it.id];
+    if (ex) {
+      ex.labels = labels; ex.name = it.name; ex.folder = folder; updated++;
+    } else {
+      const f = zip.file(it.img);
+      if (!f) { done++; continue; }
+      const ext = it.img.split('.').pop().toLowerCase();
+      const blob = new Blob([await f.async('uint8array')], { type: ext === 'png' ? 'image/png' : 'image/jpeg' });
+      const img = await storeImage(blob);
+      S.items[it.id] = { id: it.id, type: 'photo', img, w: it.w, h: it.h, name: it.name, folder, labels, created: t0 + done };
+      added++;
+    }
+    if (++done % 20 === 0) prog.textContent = `${done} / ${man.items.length}`;
+  }
+  save(); m.close(); rerender();
+  toast(`넣었어요: 새 사진 ${added}장${updated ? `, 고친 사진 ${updated}장` : ''}`, 4000);
+}
+
 /* ---- JSON (문족 / 빈칸 bulk) ---- */
 async function importJSONItems() {
   const [file] = await pickFile('.json,application/json');

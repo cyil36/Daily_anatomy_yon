@@ -94,6 +94,7 @@ function newItemMenu(anchor) {
     ['📊  엑셀(.xlsx)로 한꺼번에', () => importExcel()],
     ['📝  문족 문제 만들기', () => openJokboEditor(null)],
     ['▢  빈칸 카드 만들기 (여러 줄)', () => openClozeBulk()],
+    ['📦  자료 묶음(.zip) 가져오기', () => importBundle()],
     ['⬇  JSON 자료 가져오기', () => importJSONItems()]
   ]);
 }
