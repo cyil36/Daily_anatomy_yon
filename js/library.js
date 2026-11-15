@@ -11,6 +11,7 @@ async function renderLibrary(root) {
       h('button', { class: 'crumb', onclick: () => { Lib.folder = null; rerender(); } }, '전체 자료'),
       path.map(f => [h('span', { class: 'sep' }, '›'), h('button', { class: 'crumb', onclick: () => { Lib.folder = f.id; rerender(); } }, f.name)])),
     h('div', { class: 'row' },
+      folderDescItems(Lib.folder).some(i => i.type === 'photo') ? h('button', { class: 'btn ghost sm', onclick: () => viewFolder(Lib.folder) }, '▶ 넘겨보기') : null,
       h('button', { class: 'btn ghost sm', onclick: () => { Lib.select = !Lib.select; Lib.sel.clear(); rerender(); } }, Lib.select ? '선택 끝' : '선택'),
       h('button', { class: 'btn ghost sm', onclick: newFolder }, '+ 새 폴더'),
       h('button', { class: 'btn primary sm', onclick: e => newItemMenu(e.currentTarget) }, '+ 새 자료')));
@@ -55,7 +56,10 @@ async function renderLibrary(root) {
       class: 'lib-card' + (Lib.sel.has(it.id) ? ' sel' : '') + (it.type === 'photo' && !itemQids(it).length ? ' warn' : ''),
       onclick: () => {
         if (Lib.select) { Lib.sel.has(it.id) ? Lib.sel.delete(it.id) : Lib.sel.add(it.id); rerender(); }
-        else openEditor(it.id);
+        else if (it.type === 'photo' && itemQids(it).length) {
+          const photos = items.filter(x => x.type === 'photo');
+          openViewer(photos, photos.indexOf(it), (folderPath(Lib.folder).pop() || { name: '자료' }).name + ' · 넘겨보기');
+        } else openEditor(it.id);
       }
     }, th,
       h('div', { class: 'lib-meta' }, h('div', { class: 'lib-name' }, itemTitle(it)), h('div', { class: 'muted sm' }, sub)),
@@ -100,6 +104,7 @@ function newItemMenu(anchor) {
 }
 function folderMenu(anchor, f) {
   menu(anchor, [
+    folderDescItems(f.id).some(i => i.type === 'photo') ? ['▶ 넘겨보기', () => viewFolder(f.id)] : null,
     ['이름 변경', async () => { const n = await promptBox('이름 변경', f.name); if (n) { f.name = n; save(); rerender(); } }],
     ['이동', () => moveFolder(f)],
     ['삭제', async () => {

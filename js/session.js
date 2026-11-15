@@ -23,6 +23,7 @@ function startMenu(d) {
     opt('전체 풀기', `${st.n}문제` + (d.order === 'random' ? ' · 랜덤 순서' : ''), () => runSession(d, d.qs, 'all', 0)),
     opt('안 푼 문제만 풀기', unsolved.length ? `${unsolved.length}문제` : '안 푼 문제가 없어요', () => runSession(d, unsolved, 'unsolved', 0), !unsolved.length),
     opt('틀린 문제만 풀기', wrong.length ? `${wrong.length}문제 · 다시 맞히면 ✓로 바뀌어요` : '틀린 문제가 없어요', () => runSession(d, wrong, 'wrong', 0), !wrong.length),
+    itemTypeFor(d.type) === 'photo' ? opt('넘겨보기 (채점 없이)', '사진과 정답을 보면서 ◀ ▶로 넘겨요. 기록은 남지 않아요.', () => viewDeck(d)) : null,
     h('div', { class: 'row between' },
       h('button', { class: 'btn ghost sm', onclick: () => { m.close(); openQList(d); } }, '문제 목록'),
       h('button', { class: 'btn ghost sm', onclick: async () => { m.close(); if (await confirmBox(`‘${d.name}’의 기록을 모두 지우고 처음부터 다시 풀까요?`, '초기화', true)) { d.rec = {}; d.pos = 0; if (d.sample) syncQs(d, true); save(); rerender(); startMenu(d); } } }, '기록 지우고 처음부터'))));
