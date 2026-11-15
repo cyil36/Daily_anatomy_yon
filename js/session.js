@@ -160,7 +160,7 @@ async function photoStage(item, label, revealed) {
     ov.append(h('div', {
       class: 'qbox' + (cur ? ' cur' : '') + (cur && revealed ? ' open' : ''),
       style: { left: b[0] * 100 + '%', top: b[1] * 100 + '%', width: b[2] * 100 + '%', height: b[3] * 100 + '%' }
-    }, cur ? (revealed ? '' : '?') : ''));
+    }));
   }
   const st = h('div', { class: 'stage' }, img, ov);
   const vh = SESS && SESS.d.type === 'photo' ? 56 : SESS && SESS.d.type === 'rtype' ? 36 : 44;
