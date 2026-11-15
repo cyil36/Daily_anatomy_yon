@@ -28,9 +28,9 @@ function startMenu(d) {
       h('button', { class: 'btn ghost sm', onclick: async () => { m.close(); if (await confirmBox(`‘${d.name}’의 기록을 모두 지우고 처음부터 다시 풀까요?`, '초기화', true)) { d.rec = {}; d.pos = 0; if (d.sample) syncQs(d, true); save(); rerender(); startMenu(d); } } }, '기록 지우고 처음부터'))));
 }
 
-function runSession(d, qs, mode, startAt) {
+function runSession(d, qs, mode, startAt, keepOrder) {
   let list = qs.slice();
-  if (d.order === 'random' && !startAt) list = shuffle(list);
+  if (d.order === 'random' && !startAt && !keepOrder) list = shuffle(list);
   SESS = { d, list, mode, i: startAt || 0, run: {}, picked: new Set(), choices: {}, typed: {}, blanks: new Set(), revealed: false, showEx: false, streak: 0, t0: Date.now(), timer: null, tLeft: 0, half: false, quarter: false };
   const root = h('div', { class: 'sess' });
   SESS.root = root;
@@ -95,8 +95,15 @@ async function drawQ() {
     title: (i + 1) + '번', onclick: () => go(i - s.i)
   })));
   const timerEl = h('span', { class: 'timer' });
+  const here = itemTitle(r.item);
+  const where = folderPath(r.item.folder).map(f => f.name).slice(-2).join(' › ');
   root.append(h('div', { class: 'sess-top' },
-    h('span', { class: 'qcount' }, `${s.i + 1} / ${s.list.length}`), gauge, timerEl));
+    h('span', { class: 'qcount' }, `${s.i + 1} / ${s.list.length}`), gauge, timerEl,
+    h('button', { class: 'btn ghost xs', title: '문제 목록에서 원하는 위치로 이동', onclick: () => openQList(s.d, {
+      list: s.list, current: s.i, run: s.run, inSession: true,
+      onPick: i => { closeTopModal(); go(i - s.i); }
+    }) }, '☰ 목록')));
+  root.append(h('div', { class: 'sess-where muted sm' }, [here, where].filter(Boolean).join(' · ')));
 
   const main = h('div', { class: 'sess-main' });
   const foot = h('div', { class: 'sess-foot' });

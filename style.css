@@ -196,6 +196,20 @@ button.list-row:hover, .list-row.on { background: var(--panel2); }
 .circle.on { background: var(--primary); color: #fff; border-color: var(--primary); }
 .cloze-preview { margin-top: 8px; padding: 10px; border-radius: 10px; background: var(--panel2); line-height: 2; }
 
+/* grouped question list */
+.qgroups { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 64vh; overflow: auto; padding: 2px; }
+.qg-head { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--panel); }
+.qg-head:hover { border-color: color-mix(in srgb, var(--primary) 50%, var(--line)); }
+.qg-head.cur { border-color: var(--primary); }
+.qg-head .pbar { margin: 6px 0 0; height: 5px; }
+.qg-title { font-weight: 700; }
+.qg-thumb { width: 52px; height: 52px; border-radius: 8px; background: var(--panel2) center/cover no-repeat; flex: none; display: grid; place-items: center; }
+.qg-rows { display: flex; flex-direction: column; margin: 0 0 6px 30px; }
+.qrow { cursor: pointer; padding: 6px 10px; }
+.qrow:hover { background: var(--panel2); }
+.qrow.cur { background: color-mix(in srgb, var(--primary) 12%, var(--panel)); }
+.sess-where { text-align: center; margin-top: -6px; }
+
 /* session */
 .sess { display: flex; flex-direction: column; min-height: 100%; gap: 12px; }
 .sess-top { display: flex; align-items: center; gap: 12px; }

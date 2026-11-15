@@ -292,18 +292,76 @@ function mergeDecks(kind) {
     } }, '만들기'))), { wide: true });
 }
 
-function openQList(d) {
-  syncQs(d);
-  const list = h('div', { class: 'qlist' });
-  d.qs.forEach((q, i) => {
+/* Question list grouped by page (photo / card). Tap a page or a question to start from there.
+   opts: {list, current, run (session results), onPick(i), inSession} */
+function openQList(d, opts = {}) {
+  if (!opts.list) syncQs(d);
+  const qs = opts.list || d.qs;
+  const run = opts.run || {};
+  const pick = opts.onPick || (i => { m.close(); runSession(d, d.qs, 'all', i, true); });
+  const status = q => run[q] !== undefined ? run[q] : d.rec[q];
+  // consecutive groups by item
+  const groups = [];
+  qs.forEach((q, i) => {
     const r = resolveQ(q); if (!r) return;
-    const title = r.label ? r.label.answer : itemTitle(r.item);
-    const rec = d.rec[q];
-    list.append(h('div', { class: 'list-row' },
-      h('span', { class: 'qn ' + (rec === 1 ? 'ok' : rec === -1 ? 'no' : '') }, i + 1),
-      h('span', { class: 'grow' }, title, r.label ? h('span', { class: 'muted sm' }, ' · ' + itemTitle(r.item)) : null),
-      h('button', { class: 'btn ghost xs', onclick: () => { m.close(); openEditor(r.item.id); } }, '고치기'),
-      d.fixed || d.sample ? h('button', { class: 'btn ghost xs', onclick: () => { d.qs = d.qs.filter(x => x !== q); delete d.rec[q]; save(); m.close(); openQList(d); } }, '빼기') : null));
+    const g = groups[groups.length - 1];
+    if (g && g.item.id === r.item.id) g.rows.push({ q, i, r });
+    else groups.push({ item: r.item, rows: [{ q, i, r }] });
   });
-  const m = modal(`${d.name} · ${d.qs.length}문제`, list, { wide: true, onClose: () => rerender() });
+  const curGroup = groups.findIndex(g => g.rows.some(x => x.i === opts.current));
+  const open = new Set(qs.length <= 120 ? groups.map((_, gi) => gi) : (curGroup >= 0 ? [curGroup] : []));
+  let filter = '';
+  const box = h('div', { class: 'qgroups' });
+  const search = h('input', { class: 'input', placeholder: '정답·페이지 이름으로 찾기 (예: Trapezius, p.54)' });
+  search.oninput = () => { filter = search.value.trim().toLowerCase(); draw(); };
+
+  function sub(item) {
+    const p = folderPath(item.folder).map(f => f.name);
+    return p.slice(-2).join(' › ');
+  }
+  function draw() {
+    box.innerHTML = '';
+    let shown = 0;
+    groups.forEach((g, gi) => {
+      const title = itemTitle(g.item);
+      const rows = filter ? g.rows.filter(x => (x.r.label ? x.r.label.answer : '').toLowerCase().includes(filter) || title.toLowerCase().includes(filter)) : g.rows;
+      if (!rows.length) return;
+      shown++;
+      const ok = g.rows.filter(x => status(x.q) === 1).length, no = g.rows.filter(x => status(x.q) === -1).length;
+      const isOpen = filter || open.has(gi);
+      const th = h('div', { class: 'qg-thumb' });
+      if (g.item.type === 'photo') imgURL(g.item.img).then(u => { if (u) th.style.backgroundImage = `url("${u}")`; });
+      else th.append(h('span', { class: 'tbadge ' + g.item.type }, TYPE_LABEL[g.item.type]));
+      const head = h('div', { class: 'qg-head' + (gi === curGroup ? ' cur' : ''), onclick: () => { open.has(gi) ? open.delete(gi) : open.add(gi); draw(); } },
+        th,
+        h('div', { class: 'grow' },
+          h('div', { class: 'qg-title' }, (isOpen ? '▾ ' : '▸ ') + title),
+          h('div', { class: 'muted sm' }, [TYPE_LABEL[g.item.type] || '', sub(g.item), `${g.rows[0].i + 1}–${g.rows[g.rows.length - 1].i + 1}번 (${g.rows.length}문제)`].filter(Boolean).join(' · ')),
+          progressBar(ok, no, g.rows.length)),
+        h('button', { class: 'btn primary xs', onclick: e => { e.stopPropagation(); pick(g.rows[0].i); } }, '여기부터'));
+      box.append(head);
+      if (isOpen) {
+        const rl = h('div', { class: 'qg-rows' });
+        for (const x of rows) {
+          const st = status(x.q);
+          rl.append(h('div', { class: 'list-row qrow' + (x.i === opts.current ? ' cur' : ''), onclick: () => pick(x.i) },
+            h('span', { class: 'qn ' + (st === 1 ? 'ok' : st === -1 ? 'no' : '') }, x.i + 1),
+            h('span', { class: 'grow' }, x.r.label ? x.r.label.answer : itemTitle(x.r.item)),
+            !opts.inSession ? h('button', { class: 'btn ghost xs', onclick: e => { e.stopPropagation(); m.close(); openEditor(x.r.item.id); } }, '고치기') : null,
+            !opts.inSession && (d.fixed || d.sample) ? h('button', { class: 'btn ghost xs', onclick: e => { e.stopPropagation(); d.qs = d.qs.filter(y => y !== x.q); delete d.rec[x.q]; save(); m.close(); openQList(d); } }, '빼기') : null));
+        }
+        box.append(rl);
+      }
+    });
+    if (!shown) box.append(h('div', { class: 'empty sm' }, '찾는 문제가 없어요.'));
+  }
+  draw();
+  const body = h('div', null,
+    h('div', { class: 'row gap' }, search,
+      h('button', { class: 'btn ghost sm', onclick: () => { groups.forEach((_, gi) => open.add(gi)); draw(); } }, '모두 펼치기'),
+      h('button', { class: 'btn ghost sm', onclick: () => { open.clear(); draw(); } }, '모두 접기')),
+    h('p', { class: 'muted sm' }, `페이지 ${groups.length}개 · ${qs.length}문제 · 페이지의 ‘여기부터’나 문제를 누르면 그 위치부터 풀어요.`),
+    box);
+  const m = modal(`${d.name}`, body, { wide: true, onClose: () => { if (!opts.inSession) rerender(); } });
+  setTimeout(() => { const c = box.querySelector('.qrow.cur') || box.querySelector('.qg-head.cur'); c && c.scrollIntoView({ block: 'center' }); }, 50);
 }
