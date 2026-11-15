@@ -193,7 +193,7 @@ function grade(v) {
 async function drawPhotoStudy(r, main, foot, answered) {
   const s = SESS;
   const rev = s.revealed || answered;
-  main.append(h('p', { class: 'muted sm center' }, r.label.boxes.length ? '빨간 ? 의 이름을 떠올린 뒤 [정답 확인]을 눌러요.' : '사진 속 ? 의 이름을 떠올린 뒤 [정답 확인]을 눌러요.'),
+  main.append(h('p', { class: 'muted sm center' }, r.label.boxes.length ? '빨간 상자의 이름을 떠올린 뒤 [정답 확인]을 눌러요.' : '사진 속 ? 의 이름을 떠올린 뒤 [정답 확인]을 눌러요.'),
     await photoStage(r.item, r.label, rev));
   main.append(h('div', { class: 'answer' + (rev ? ' show' : '') }, rev ? r.label.answer : ' '));
   if (!rev) foot.append(h('button', { class: 'btn big primary wide', onclick: () => { s.revealed = true; drawQ(); } }, '정답 확인'));
@@ -222,7 +222,7 @@ async function drawPhotoChoice(r, main, foot, answered) {
   const s = SESS, q = curQ();
   const opts = buildChoices(r);
   const ans = r.label.answer.trim();
-  main.append(h('p', { class: 'muted sm center' }, s.d.type === 'rtype' ? '빨간 ? 의 이름을 번호 목록에서 골라요.' : '빨간 ? 의 이름을 골라요.'),
+  main.append(h('p', { class: 'muted sm center' }, s.d.type === 'rtype' ? '빨간 상자의 이름을 번호 목록에서 골라요.' : '빨간 상자의 이름을 골라요.'),
     await photoStage(r.item, r.label, answered));
   const picked = s.typed[q];
   const box = h('div', { class: s.d.type === 'rtype' ? 'choices rlist' : 'choices' });
@@ -251,7 +251,7 @@ function pickChoice(i) {
 
 async function drawPhotoTyped(r, main, foot, answered) {
   const s = SESS, q = curQ();
-  main.append(h('p', { class: 'muted sm center' }, '빨간 ? 의 이름을 입력해요. 대소문자·띄어쓰기는 상관없어요.'),
+  main.append(h('p', { class: 'muted sm center' }, '빨간 상자의 이름을 입력해요. 대소문자·띄어쓰기는 상관없어요.'),
     await photoStage(r.item, r.label, answered));
   const inp = h('input', { class: 'input big', placeholder: '정답을 입력하세요', value: s.typed[q] || '', disabled: answered, autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' });
   const submit = () => {
