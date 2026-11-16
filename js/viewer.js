@@ -10,7 +10,7 @@ function openViewer(items, start = 0, title = '넘겨보기') {
   VIEW = { items, i: Math.min(start, items.length - 1), mode, open: new Set(), hl: null };
   const root = h('div', { class: 'viewer' });
   VIEW.root = root;
-  VIEW.modal = modal(title, root, { full: true, onClose: () => { document.removeEventListener('keydown', viewKey); VIEW = null; rerender(); } });
+  VIEW.modal = modal(title, root, { full: true, fit: true, onClose: () => { document.removeEventListener('keydown', viewKey); VIEW = null; rerender(); } });
   document.addEventListener('keydown', viewKey);
   drawView();
 }
@@ -54,8 +54,10 @@ async function drawView() {
       onclick: e => { e.stopPropagation(); toggleLabel(l.id); }
     }, h('span', { class: 'vnum' }, li + 1)));
   }));
-  const stage = h('div', { class: 'stage' }, img, ov);
-  if (it.w && it.h) stage.style.maxWidth = `min(900px, calc(62vh * ${(it.w / it.h).toFixed(4)}))`;
+  const stage = zoomPane(h('div', { class: 'stage' }, img, ov), 'v:' + it.id, {
+    aspect: it.w && it.h ? it.w / it.h : 0,
+    onSwipe: dir => viewGo(dir)
+  });
 
   const list = h('div', { class: 'vlist' }, labels.map((l, li) => {
     const shown = v.mode === 'show' || v.open.has(l.id);
@@ -67,17 +69,8 @@ async function drawView() {
   root.append(h('div', { class: 'view-main' }, stage, list));
   root.append(h('div', { class: 'navrow view-nav' },
     h('button', { class: 'btn ghost', disabled: v.i === 0, onclick: () => viewGo(-1) }, '◀ 이전'),
-    h('span', { class: 'muted xs keyhint' }, '← → 넘기기 · Space 가리기/보기 · 사진을 누르면 크게'),
+    h('span', { class: 'muted xs keyhint' }, '← → 넘기기 · Space 가리기/보기 · 휠·두 손가락·두 번 눌러 확대'),
     h('button', { class: 'btn ghost', disabled: v.i === v.items.length - 1, onclick: () => viewGo(1) }, '다음 ▶')));
-  stage.addEventListener('click', () => zoomStage(stage));
-  // swipe
-  let sx = null;
-  stage.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
-  stage.addEventListener('touchend', e => {
-    if (sx == null) return;
-    const dx = e.changedTouches[0].clientX - sx; sx = null;
-    if (Math.abs(dx) > 60) viewGo(dx < 0 ? 1 : -1);
-  });
 }
 
 function toggleLabel(id) {

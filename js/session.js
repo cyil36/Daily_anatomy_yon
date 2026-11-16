@@ -35,7 +35,7 @@ function runSession(d, qs, mode, startAt, keepOrder) {
   SESS = { d, list, mode, i: startAt || 0, run: {}, picked: new Set(), choices: {}, typed: {}, blanks: new Set(), revealed: false, showEx: false, streak: 0, t0: Date.now(), timer: null, tLeft: 0, half: false, quarter: false };
   const root = h('div', { class: 'sess' });
   SESS.root = root;
-  SESS.modal = modal(h('span', { class: 'sess-title' }, d.name), root, { full: true, onClose: endSession });
+  SESS.modal = modal(h('span', { class: 'sess-title' }, d.name), root, { full: true, fit: true, onClose: endSession });
   document.addEventListener('keydown', sessKey);
   cheer('hi');
   drawQ();
@@ -106,11 +106,11 @@ async function drawQ() {
     }) }, '☰ 목록')));
   root.append(h('div', { class: 'sess-where muted sm' }, [here, where].filter(Boolean).join(' · ')));
 
-  const main = h('div', { class: 'sess-main' });
+  const t = d.type;
+  const main = h('div', { class: 'sess-main' + (['photo', 'mcq', 'rtype', 'typed'].includes(t) ? ' photo' : '') });
   const foot = h('div', { class: 'sess-foot' });
   root.append(main, foot);
 
-  const t = d.type;
   if (t === 'photo') await drawPhotoStudy(r, main, foot, answered);
   else if (t === 'mcq' || t === 'rtype') await drawPhotoChoice(r, main, foot, answered);
   else if (t === 'typed') await drawPhotoTyped(r, main, foot, answered);
@@ -163,10 +163,10 @@ async function photoStage(item, label, revealed) {
     }));
   }
   const st = h('div', { class: 'stage' }, img, ov);
-  const vh = SESS && SESS.d.type === 'photo' ? 56 : SESS && SESS.d.type === 'rtype' ? 36 : 44;
-  if (item.w && item.h) st.style.maxWidth = `min(760px, calc(${vh}vh * ${(item.w / item.h).toFixed(4)}))`;
-  st.addEventListener('click', () => zoomStage(st));
-  return st;
+  return zoomPane(st, 'q:' + (SESS ? curQ() : item.id), {
+    aspect: item.w && item.h ? item.w / item.h : 0,
+    onSwipe: dir => { if (SESS) go(dir); }
+  });
 }
 function zoomStage(st) {
   const c = st.cloneNode(true); c.classList.add('zoomed'); c.style.maxWidth = 'none';
